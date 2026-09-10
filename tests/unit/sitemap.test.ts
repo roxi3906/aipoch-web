@@ -113,6 +113,12 @@ describe('sitemap', () => {
     })
     expect(routes.some((route) => route.url === `${siteDomain}/community`)).toBe(false)
   })
+  test('keeps standalone presentations outside the sitemap', async () => {
+    const { default: sitemap } = await import('../../app/sitemap')
+    const routes = await sitemap()
+    expect(routes.some((route) => route.url.includes('/open-science/overview'))).toBe(false)
+  })
+
   test('allows the site in robots metadata', async () => {
     const { default: robots } = await import('../../app/robots')
 

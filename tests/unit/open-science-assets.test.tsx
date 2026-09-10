@@ -36,7 +36,8 @@ describe('Open-Science design assets', () => {
 
   test('preserves the separate overview assets and removes the old route implementation', () => {
     expect(existsSync(join(publicDir, 'open-science/overview.html'))).toBe(true)
-    expect(readdirSync(join(publicDir, 'open-science/assets')).length).toBe(33)
+    expect(existsSync(join(publicDir, 'open-science/overview-corporate.html'))).toBe(true)
+    expect(readdirSync(join(publicDir, 'open-science/assets')).length).toBe(48)
     for (const file of [
       'open-science.css',
       'open-science-content.tsx',

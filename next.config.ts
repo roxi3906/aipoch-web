@@ -18,13 +18,17 @@ const nextConfig: NextConfig = {
       {
         source: '/open-science/overview',
         destination: '/open-science/overview.html'
+      },
+      {
+        source: '/open-science/overview-corporate',
+        destination: '/open-science/overview-corporate.html'
       }
     ]
   },
   async headers() {
     return [
       {
-        source: '/open-science/overview',
+        source: '/open-science/:page(overview|overview-corporate)',
         headers: [
           {
             key: 'Content-Security-Policy',
