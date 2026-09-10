@@ -18,8 +18,9 @@ test('serves the corporate presentation with images and synchronized bilingual n
 
   const chinese = page.frameLocator('#deck-zh')
   await expect(chinese.locator('.slide.active')).toHaveAttribute('data-page', '01')
+  await expect(chinese.locator('.hero-title br')).toHaveCount(0)
   const heroHighlights = chinese.locator('.hero-title .highlight-text')
-  await expect(heroHighlights).toHaveText(['Open-', 'Science'])
+  await expect(heroHighlights).toHaveText(['Open-Science'])
   for (const highlight of await heroHighlights.all()) {
     await expect(highlight).toHaveCSS('background-color', 'rgb(241, 221, 103)')
     await expect(highlight).toHaveCSS('color', 'rgb(17, 17, 17)')
@@ -41,7 +42,7 @@ test('serves the corporate presentation with images and synchronized bilingual n
   await expect(chinese.locator('.slide.active')).toHaveAttribute('data-page', '02')
   await chinese.getByRole('button', { name: 'Switch to English', exact: true }).click()
   const english = page.frameLocator('#deck-en')
-  await expect(english.locator('.hero-title .highlight-text')).toHaveText(['Open-', 'Science'])
+  await expect(english.locator('.hero-title .highlight-text')).toHaveText(['Open-Science'])
   await expect(english.locator('.slide.active')).toHaveAttribute('data-page', '02')
   await expect(page).toHaveURL(/lang=en#slide-02$/)
   await expect(english.locator('body')).not.toContainText(/open\s*science/i)

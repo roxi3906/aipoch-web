@@ -20,8 +20,8 @@ test('serves a hyphenated bilingual corporate deck with extracted image assets',
   }
 })
 
-test('highlights both lines of the corporate hero in both languages', async () => {
+test('highlights the corporate hero on one line in both languages', async () => {
   const html = await readFile(join(publicDir, 'open-science/overview-corporate.html'), 'utf8')
-  const secondLine = String.raw`<br><span class=\"highlight-text\">Science</span></h1>`
+  const secondLine = String.raw`<span class=\"highlight-text en\">Open-Science</span></h1>`
   expect(html.split(secondLine)).toHaveLength(3)
 })
