@@ -19,3 +19,9 @@ test('serves a hyphenated bilingual corporate deck with extracted image assets',
     expect((await stat(join(publicDir, asset))).size).toBeGreaterThan(0)
   }
 })
+
+test('highlights both lines of the corporate hero in both languages', async () => {
+  const html = await readFile(join(publicDir, 'open-science/overview-corporate.html'), 'utf8')
+  const secondLine = String.raw`<br><span class=\"highlight-text\">Science</span></h1>`
+  expect(html.split(secondLine)).toHaveLength(3)
+})
