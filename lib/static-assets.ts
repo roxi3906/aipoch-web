@@ -41,6 +41,7 @@ export const aipochStaticAssets = [
       { fileName: 'scientist4-a7f7f8ce.webp' },
       // Intrinsic image sizes share the same registry as their CDN filenames.
       { fileName: 'agent-skills-hero-3854ac8d.webp', width: 1672, height: 941 },
+      { fileName: 'blog-hero-background-ef51ee4b.webp', width: 1672, height: 941 },
       { fileName: 'open-science-execution-22cf5be9.webp', width: 598, height: 559 },
       { fileName: 'open-science-specialists-495d54a2.webp', width: 606, height: 559 },
       { fileName: 'open-science-traceability-19cb72cd.webp', width: 601, height: 559 },

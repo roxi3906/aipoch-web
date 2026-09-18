@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BlogSidebarCTA } from '@/components/blog-sidebar'
 import { JsonLd } from '@/components/json-ld'
-import { MarkdownRenderer } from '@/components/markdown'
+import { BlogArticleQuote, MarkdownRenderer } from '@/components/markdown'
 import { TableOfContents } from '@/components/markdown/toc'
-import { extractVideosFromContent, formatDate, getPost } from '@/lib/blog'
+import { extractVideosFromContent, getPost } from '@/lib/blog'
 import { SITE_DOMAIN } from '@/lib/config'
 import { staticAsset } from '@/lib/staticAsset'
 import { extractToc } from '@/lib/toc'
@@ -232,127 +232,120 @@ export default async function BlogPostPage({ params }: BlogPageProps) {
     }
   }
 
-  const formattedDate = formatDate(post.frontmatter.date)
-
   return (
-    <main className="min-h-screen bg-[#fafafa]">
-      <div className="px-4 pt-12 pb-22 lg:pb-32">
-        <div className="mx-auto max-w-4xl xl:max-w-5xl">
-          <JsonLd data={schemas} />
+    <main className="-mt-[var(--nav-h)] min-h-screen bg-[#f6f6f4] text-[#111]">
+      <JsonLd data={schemas} />
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-24 pt-[calc(var(--nav-h)+48px)] sm:px-6 lg:px-8 lg:pb-32">
+        {/* Restore list access: Figma hid this control, but the live detail page still needs a return path. */}
+        <Link
+          href="/blog"
+          scroll={false}
+          className="mb-4 inline-flex cursor-pointer items-center gap-2 text-sm leading-5 text-[#61615c] transition-colors hover:text-[#111]"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Blog
+        </Link>
 
-          {/* Back to Blog */}
-          <Link
-            href="/blog"
-            scroll={false}
-            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black mb-4 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to Blog
-          </Link>
-
-          <div className="flex flex-col xl:flex-row xl:gap-4 xl:items-start xl:justify-center">
-            <div className="min-w-0 w-full max-w-3xl mx-auto xl:pr-4">
-              <nav
-                className="bg-[#d0e6f7]/40 border border-[#a8cce8] rounded-none px-4 py-1.5 mb-8 font-mono"
-                aria-label="Breadcrumb"
-              >
-                <span className="flex items-baseline flex-wrap gap-x-2 text-xs font-medium uppercase tracking-widest">
-                  <Link href="/" className="text-gray-500 hover:text-black transition-colors">
-                    HOME
-                  </Link>
-                  <span className="text-gray-400">/</span>
-                  <Link href="/blog" className="text-gray-500 hover:text-black transition-colors">
-                    BLOG
-                  </Link>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-gray-900 truncate max-w-[200px] md:max-w-md min-w-0">
-                    {post.frontmatter.title.toUpperCase()}
-                  </span>
-                </span>
-              </nav>
-
-              {/* Main content on a white background. */}
-              <div className="bg-white rounded-none shadow-sm">
-                <article>
-                  {/* Article Header */}
-                  <header className="p-6 md:p-8 pb-0">
-                    <div className="flex items-center gap-2 text-[#ea580c] font-mono text-xs font-bold uppercase leading-none tracking-widest mb-4">
-                      <Clock size={14} />
-                      <span className="leading-none mt-0.5">{post.frontmatter.readTime}</span>
-                    </div>
-                    <h1 className="text-2xl md:text-3xl mb-4 leading-snug font-bold">
-                      {post.frontmatter.seo?.h1 ?? post.frontmatter.title}
-                    </h1>
-                    <p className="text-gray-600 mb-6 font-serif">{post.frontmatter.description}</p>
-                    <div>
-                      <span className="text-sm font-medium text-gray-900 block">
-                        {post.frontmatter.author}
-                      </span>
-                      <span className="text-sm font-mono text-gray-500">{formattedDate}</span>
-                    </div>
-                  </header>
-
-                  {/* Article content divider. */}
-                  <hr className="border-t border-gray-200 mx-6 md:mx-8 my-0" />
-
-                  {/* Article Content */}
-                  <div className="p-6 md:p-8 pt-6">
-                    <MarkdownRenderer content={post.content} mode="md" />
-                  </div>
-
-                  {/* Prev/Next Navigation */}
-                  <nav className="mt-12 pt-8 border-t border-gray-200 px-6 md:px-8 pb-6 md:pb-8">
-                    <div className="flex flex-col sm:flex-row gap-6">
-                      {prev ? (
-                        <Link
-                          href={`/blog/${prev.slug}`}
-                          className="flex-1 group p-4 rounded-none border border-gray-200 hover:border-gray-300 hover:bg-gray-200 transition-all"
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
-                            Previous Article
-                          </p>
-                          <p className="font-medium flex items-center gap-2 min-w-0">
-                            <ArrowLeft size={16} className="shrink-0" />{' '}
-                            <span className="line-clamp-2">{prev.title}</span>
-                          </p>
-                        </Link>
-                      ) : (
-                        <div className="flex-1" />
-                      )}
-                      {next ? (
-                        <Link
-                          href={`/blog/${next.slug}`}
-                          className="flex-1 group p-4 rounded-none border border-gray-200 hover:border-gray-300 hover:bg-gray-200 transition-all sm:text-right"
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
-                            Next Article
-                          </p>
-                          <p className="font-medium flex items-center justify-end gap-2 sm:justify-end min-w-0">
-                            <span className="line-clamp-2 text-right">{next.title}</span>{' '}
-                            <ArrowRight size={16} className="shrink-0" />
-                          </p>
-                        </Link>
-                      ) : (
-                        <div className="flex-1" />
-                      )}
-                    </div>
-                  </nav>
-                </article>
+        <article>
+          <header className="flex flex-col gap-5 bg-[#f6f6f4]">
+            <div className="flex flex-col gap-4 py-8 pr-0 lg:pr-8">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase leading-4 text-[#61615c]">
+                <Clock className="size-3 shrink-0" strokeWidth={2} />
+                <span>{post.frontmatter.readTime}</span>
               </div>
+              <h1 className="font-[Georgia] text-[40px] leading-[1.08] tracking-[-0.04em] text-[#111] sm:text-[56px] sm:leading-[56px] sm:tracking-[-0.021em] lg:pl-[352px]">
+                {post.frontmatter.seo?.h1 ?? post.frontmatter.title}
+              </h1>
+              <p className="text-base leading-[26px] text-[#61615c] lg:pl-[352px] lg:pr-4">
+                {post.frontmatter.description}
+              </p>
             </div>
+            <div className="flex flex-col gap-1 pt-6 text-[#61615c]">
+              <span className="text-[11px] font-semibold leading-4">{post.frontmatter.author}</span>
+            </div>
+          </header>
 
-            <aside className="hidden xl:block xl:w-72 shrink-0 xl:ml-2 xl:self-stretch">
-              <div className="sticky top-58 w-72 space-y-6">
-                <TableOfContents
-                  toc={toc}
-                  className="border border-black/10 bg-white rounded-none p-4"
-                />
+          <div className="mt-[50px] grid gap-10 lg:grid-cols-[280px_minmax(0,880px)] lg:justify-between lg:gap-10">
+            <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:self-stretch">
+              <div className="sticky top-[calc(var(--nav-h)+24px)] h-fit w-full space-y-7">
+                <TableOfContents toc={toc} variant="blog" className="border-0 bg-transparent p-0" />
                 <BlogSidebarCTA />
               </div>
             </aside>
+
+            <div className="min-w-0 w-full max-w-[880px]">
+              <div className="blog-article-body px-8 pb-12 pt-8">
+                <MarkdownRenderer
+                  content={post.content}
+                  mode="md"
+                  components={{ blockquote: BlogArticleQuote }}
+                />
+              </div>
+
+              {/* Rule and cards share the article inset so the pair stays aligned. */}
+              <nav className="mt-12 px-8 pb-8">
+                <div className="grid gap-6 border-t border-[#d1d1cc] pt-8 sm:grid-cols-2">
+                  {prev ? (
+                    <AdjacentArticleCard
+                      href={`/blog/${prev.slug}`}
+                      label="Previous Article"
+                      title={prev.title}
+                      direction="previous"
+                    />
+                  ) : (
+                    <div />
+                  )}
+                  {next ? (
+                    <AdjacentArticleCard
+                      href={`/blog/${next.slug}`}
+                      label="Next Article"
+                      title={next.title}
+                      direction="next"
+                    />
+                  ) : (
+                    <div />
+                  )}
+                </div>
+              </nav>
+            </div>
           </div>
-        </div>
+        </article>
       </div>
     </main>
+  )
+}
+
+// Default: outlined transparent card. Hover: white surface plus the list-card drop shadow.
+function AdjacentArticleCard({
+  href,
+  label,
+  title,
+  direction
+}: {
+  href: string
+  label: string
+  title: string
+  direction: 'previous' | 'next'
+}) {
+  const isNext = direction === 'next'
+  const Arrow = isNext ? ArrowRight : ArrowLeft
+
+  return (
+    <Link
+      href={href}
+      className="group flex h-full cursor-pointer flex-col gap-3 border border-[#e5e7eb] bg-transparent p-4 transition-[background-color,box-shadow] hover:bg-white hover:shadow-[0_0_0_1px_rgba(23,23,23,0.08),0_14px_40px_rgba(23,23,23,0.14)]"
+    >
+      <p
+        className={`text-sm uppercase leading-[22px] text-[#6b6b66]${isNext ? ' text-right' : ''}`}
+      >
+        {label}
+      </p>
+      <div className={`flex min-h-24 flex-col gap-2${isNext ? ' items-end text-right' : ''}`}>
+        <p className="line-clamp-3 min-h-[72px] text-base font-medium leading-6 text-[#6b6b66]">
+          {title}
+        </p>
+        <Arrow className="size-4 text-[#6b6b66]" />
+      </div>
+    </Link>
   )
 }

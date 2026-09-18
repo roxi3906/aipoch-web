@@ -1,6 +1,6 @@
 import { BlogListClient } from '@/components/blog-list-client'
 import { JsonLd } from '@/components/json-ld'
-import { getPostsForListPage, mapListItemToBlogPost } from '@/lib/blog'
+import { BLOG_LIST_INITIAL_VISIBLE, getPostsForListPage, mapListItemToBlogPost } from '@/lib/blog'
 import { SITE_DOMAIN } from '@/lib/config'
 import { createPageMetadata } from '@/lib/page-metadata'
 import { staticAsset } from '@/lib/staticAsset'
@@ -18,8 +18,8 @@ export const metadata = createPageMetadata({
 })
 
 export default async function BlogPage() {
-  // Fetch the first page on the server and load subsequent pages on scroll.
-  const firstPageData = await getPostsForListPage(1, 21)
+  // Fetch the first page on the server; later pages load through Show more.
+  const firstPageData = await getPostsForListPage(1, BLOG_LIST_INITIAL_VISIBLE + 1)
   const posts = firstPageData.items.map(mapListItemToBlogPost)
 
   const ogImage = staticAsset('og-bfe41bdd.webp')
@@ -64,14 +64,11 @@ export default async function BlogPage() {
   }
 
   return (
-    <main className="w-full max-w-7xl mx-auto min-w-0 px-4 pt-12 pb-22 lg:pb-32 flex-1">
+    <main className="-mt-[var(--nav-h)] min-w-0 flex-1 overflow-x-clip bg-[#f6f6f4] px-4 pb-24 text-[#111] sm:px-6 lg:px-8 lg:pb-32">
       <JsonLd data={[itemListSchema, breadcrumbSchema]} />
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">Blog</h1>
-        <p className="text-gray-500 text-lg font-mono italic">{BLOG_DESCRIPTION}</p>
-      </header>
-
-      <BlogListClient initialData={{ pages: [firstPageData], pageParams: [1] }} />
+      <div className="mx-auto w-full max-w-[1200px]">
+        <BlogListClient initialData={{ pages: [firstPageData], pageParams: [1] }} />
+      </div>
     </main>
   )
 }

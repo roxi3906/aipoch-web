@@ -1,10 +1,13 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { INTERNAL_API_URL } from '@/lib/config'
-import { apiClient } from './index'
 import type { API } from '@/service/types'
+import { apiClient } from './index'
 
 const SUCCESS_CODE = 20000
+
+/** Blog list page size shared by SSR and client pagination. */
+export const BLOG_PAGE_SIZE = 9
 
 /** Query keys for blog lists. */
 export const blogKeys = {
@@ -78,7 +81,7 @@ export interface BlogSitemapItem {
 /** Empty list response when the API has no data. */
 function emptyPostsList(params?: { page?: number; page_size?: number }): BlogPostsListData {
   const page = params?.page ?? 1
-  const pageSize = params?.page_size ?? 21
+  const pageSize = params?.page_size ?? BLOG_PAGE_SIZE
   return {
     items: [],
     total: 0,
@@ -117,9 +120,7 @@ export async function fetchBlogPostsClient(params: {
       const res = e.response
       return {
         code: res?.status || 500,
-        msg:
-          res?.data?.msg ||
-          'Internal Server Error, please try again later.',
+        msg: res?.data?.msg || 'Internal Server Error, please try again later.',
         data: null
       }
     }
@@ -133,7 +134,7 @@ export async function fetchBlogPostsClient(params: {
 
 /** Use React Query Infinite Query to fetch blog posts with caching and scroll restoration. */
 export function useInfiniteBlogPosts(
-  page_size: number = 21,
+  page_size: number = BLOG_PAGE_SIZE,
   initialData?: { pages: BlogPostsListData[]; pageParams: number[] }
 ) {
   return useInfiniteQuery({
@@ -155,7 +156,7 @@ export function useInfiniteBlogPosts(
     initialData,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
-    refetchOnMount: false,
+    refetchOnMount: initialData?.pages.some((page) => page.items.length > 0) ? false : 'always',
     refetchOnWindowFocus: false
   })
 }
@@ -168,7 +169,7 @@ export async function fetchBlogPosts(params?: {
   try {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', String(params.page))
-    searchParams.set('page_size', String(params?.page_size ?? 21))
+    searchParams.set('page_size', String(params?.page_size ?? BLOG_PAGE_SIZE))
 
     const url = `${INTERNAL_API_URL}/v1/blog/posts${searchParams.toString() ? `?${searchParams}` : ''}`
     const res = await fetch(url, {

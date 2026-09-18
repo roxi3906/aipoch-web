@@ -53,6 +53,14 @@ describe('staticAsset', () => {
     })
   })
 
+  test('resolves the blog list hero background through the shared image folder', () => {
+    expect(staticImage('blog-hero-background-ef51ee4b.webp')).toEqual({
+      src: 'https://statics.aipoch.com/public/f/image/blog-hero-background-ef51ee4b.webp',
+      width: 1672,
+      height: 941
+    })
+  })
+
   test('resolves social cards through the shared image folder', () => {
     expect(staticImage('og-science-open-to-all-ab128c94.png')).toEqual({
       src: 'https://statics.aipoch.com/public/f/image/og-science-open-to-all-ab128c94.png',

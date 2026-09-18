@@ -114,7 +114,7 @@ function pairsFromTitleText(
   })
 }
 
-/** Read & watch dates use the same local calendar conversion as lib/blog.formatDate, with abbreviated months for compact cards. */
+/** Read & watch dates use local calendar conversion with abbreviated months for compact cards. */
 export function formatReadWatchDate(dateStr: string | null | undefined): string {
   const trimmed = asTrimmedString(dateStr)
   if (!trimmed) return ''

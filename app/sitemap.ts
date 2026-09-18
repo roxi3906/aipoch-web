@@ -10,6 +10,7 @@ import { fetchOpenScienceWikiSitemap } from '@/service/wiki-sitemap'
 
 const AGENT_SKILLS_LAST_MODIFIED = '2026-09-11'
 const OPEN_SCIENCE_DOWNLOAD_LAST_MODIFIED = '2026-09-11'
+const BLOG_PAGE_LAST_MODIFIED = '2026-09-18'
 
 // Disable cache, regenerate on every request
 export const dynamic = 'force-dynamic'
@@ -126,7 +127,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     withReliableLastModified({
       url: `${SITE_DOMAIN}/blog`,
-      lastModified: SEO_PAGE_LAST_MODIFIED,
+      lastModified: BLOG_PAGE_LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8
     })
@@ -145,7 +146,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogRoutes: MetadataRoute.Sitemap = blogSitemap.map((item) =>
     withReliableLastModified({
       url: item.url,
-      lastModified: item.last_modified,
+      lastModified: latestPageDate(item.last_modified, BLOG_PAGE_LAST_MODIFIED),
       changeFrequency: (item.change_frequency as 'weekly' | 'monthly') || 'monthly',
       priority: item.priority ?? 0.7
     })

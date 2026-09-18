@@ -96,6 +96,46 @@
   }
 }
 
+.blog-article-body .markdown-body {
+  @apply prose-sm prose-slate;
+
+  & :where(p, li) {
+    @apply text-sm leading-[22px] text-[#6b6b66];
+  }
+
+  & :where(h2) {
+    @apply mt-8 font-[Georgia] text-[22px] leading-[30px] tracking-[-0.025em] text-[#111];
+  }
+
+  & :where(h3) {
+    @apply mt-6 font-[Georgia] text-lg leading-7 text-[#111];
+  }
+
+  & :where(img) {
+    @apply my-4 h-auto max-w-full;
+  }
+
+  & a {
+    @apply font-normal text-[#6b6b66] underline decoration-[#111] decoration-solid underline-offset-2;
+  }
+
+  & a:hover {
+    @apply text-[#6b6b66] decoration-[#111];
+  }
+
+  /* Figma Quote (1644:594): beige fill, brown left rail. Scoped to blog so skills/guides keep typed callout colors. */
+  & blockquote {
+    --callout-border: #736761;
+    @apply my-2 border-l-4 border-solid border-[#736761] bg-[#f4f2ec] px-0 py-0 pl-4 text-[#6b6b66];
+  }
+
+  & blockquote[data-callout],
+  & blockquote[data-callout-variant] {
+    --callout-border: #736761;
+    @apply border-[#736761] bg-[#f4f2ec] text-[#6b6b66];
+  }
+}
+
 .policy-document-page .markdown-body a.markdown-accent-link {
   color: #2563eb !important;
   text-decoration: none !important;

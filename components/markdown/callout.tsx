@@ -170,3 +170,12 @@ export function createOrderedCallout() {
     return <Callout getUntypedCalloutOrder={() => nextUntypedCalloutOrder++}>{children}</Callout>
   }
 }
+
+/** Blog article quotes match Figma 1644:594 instead of rotating callout colors. */
+export function BlogArticleQuote({ children }: { children?: ReactNode }) {
+  return (
+    <blockquote className="my-2 border-l-4 border-solid border-[#736761] bg-[#f4f2ec] pl-4">
+      <div className="py-2 pr-4 text-sm leading-[22px] text-[#6b6b66] [&_p]:m-0">{children}</div>
+    </blockquote>
+  )
+}

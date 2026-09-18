@@ -4,10 +4,10 @@ import rehypeSlug from 'rehype-slug'
 import remarkFlexibleToc from 'remark-flexible-toc'
 import remarkGfm from 'remark-gfm'
 import { MARKDOWN_HEADING_ID_PREFIX } from '@/lib/toc'
-import { createOrderedCallout } from './callout'
+import { BlogArticleQuote, createOrderedCallout } from './callout'
 import { MarkdownErrorBoundary } from './markdown-error-boundary'
 
-export { MarkdownErrorBoundary }
+export { BlogArticleQuote, MarkdownErrorBoundary }
 
 interface MarkdownRendererProps {
   content: string

@@ -1,10 +1,6 @@
 import { cache } from 'react'
-import type {
-  BlogPostDetail,
-  BlogPostListItem,
-  BlogPostsListData
-} from '@/service/blog'
-import { fetchBlogPost, fetchBlogPosts } from '@/service/blog'
+import type { BlogPostDetail, BlogPostListItem, BlogPostsListData } from '@/service/blog'
+import { BLOG_PAGE_SIZE, fetchBlogPost, fetchBlogPosts } from '@/service/blog'
 
 const SLUG_REGEX = /^[a-z0-9-_]+$/i
 
@@ -46,6 +42,15 @@ export interface BlogPost {
   nextPost?: AdjacentPostRef | null
 }
 
+export {
+  BLOG_LIST_INITIAL_VISIBLE,
+  BLOG_LIST_SCROLL_STORAGE_KEY,
+  BLOG_LIST_VISIBLE_COUNT_STORAGE_KEY,
+  getVisibleBlogListPosts,
+  parseStoredBlogListVisibleCount,
+  shouldFetchMoreBlogListPages
+} from './blog-list-visibility'
+
 /** Convert an API list item to BlogPost without content for list display. */
 export function mapListItemToBlogPost(item: BlogPostListItem): BlogPost {
   return {
@@ -84,7 +89,9 @@ function mapDetailToBlogPost(detail: BlogPostDetail): BlogPost {
     previousPost: detail.previous_post
       ? { slug: detail.previous_post.slug, title: detail.previous_post.title }
       : null,
-    nextPost: detail.next_post ? { slug: detail.next_post.slug, title: detail.next_post.title } : null
+    nextPost: detail.next_post
+      ? { slug: detail.next_post.slug, title: detail.next_post.title }
+      : null
   }
 }
 
@@ -116,10 +123,7 @@ export function extractVideosFromContent(content: string): Array<{
   }
 
   // Vimeo
-  const vimeoPatterns = [
-    /vimeo\.com\/(\d+)/g,
-    /player\.vimeo\.com\/video\/(\d+)/g
-  ]
+  const vimeoPatterns = [/vimeo\.com\/(\d+)/g, /player\.vimeo\.com\/video\/(\d+)/g]
   for (const re of vimeoPatterns) {
     for (const m of content.matchAll(re)) {
       const id = m[1]
@@ -134,20 +138,10 @@ export function extractVideosFromContent(content: string): Array<{
   return videos
 }
 
-/** Format a date, returning an empty string when dateStr is null or undefined. */
-export function formatDate(dateStr: string | null | undefined): string {
-  if (dateStr == null) return ''
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
 /** Fetch the first list page once for server rendering, returning the API format directly. */
 export async function getPostsForListPage(
   page = 1,
-  pageSize = 21
+  pageSize = BLOG_PAGE_SIZE
 ): Promise<BlogPostsListData> {
   return fetchBlogPosts({ page, page_size: pageSize })
 }
@@ -159,4 +153,3 @@ export const getPost = cache(async (slug: string): Promise<BlogPost | null> => {
   if (!detail) return null
   return mapDetailToBlogPost(detail)
 })
-

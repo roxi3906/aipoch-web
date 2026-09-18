@@ -17,7 +17,7 @@ test('serves the standalone Open-Science overview at the clean route', async ({ 
   await expect(page.locator('footer')).toHaveCount(0)
 
   const chineseDeck = page.frameLocator('#deck-zh')
-  await expect(chineseDeck.getByText('01 / 15', { exact: true })).toBeVisible()
+  await expect(chineseDeck.getByText('01 / 16', { exact: true })).toBeVisible()
   await expect(chineseDeck.locator('.slide.active')).toBeVisible()
 
   // Keep the brand on one line in the hero and community diagram, retaining the hero's yellow highlight.
@@ -30,6 +30,6 @@ test('serves the standalone Open-Science overview at the clean route', async ({ 
 
   await expect(chineseDeck.locator('img')).not.toHaveCount(0)
   await chineseDeck.locator('#nextBtn').click({ force: true })
-  await expect(chineseDeck.getByText('02 / 15', { exact: true })).toBeVisible()
+  await expect(chineseDeck.getByText('02 / 16', { exact: true })).toBeVisible()
   expect(consoleErrors).toEqual([])
 })

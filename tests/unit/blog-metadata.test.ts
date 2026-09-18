@@ -5,7 +5,6 @@ const getPostMock = mock()
 
 mock.module('@/lib/blog', () => ({
   extractVideosFromContent: () => [],
-  formatDate: (date: string) => date,
   getPost: getPostMock
 }))
 
@@ -14,7 +13,8 @@ mock.module('@/components/blog-sidebar', () => ({
 }))
 
 mock.module('@/components/markdown', () => ({
-  MarkdownRenderer: () => null
+  MarkdownRenderer: () => null,
+  BlogArticleQuote: () => null
 }))
 
 mock.module('@/components/markdown/toc', () => ({

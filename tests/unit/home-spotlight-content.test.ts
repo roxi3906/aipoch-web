@@ -251,9 +251,9 @@ describe('resolveHomeSpotlightContent', () => {
 })
 
 describe('formatReadWatchDate', () => {
-  test('formats ISO timestamps like blog formatDate calendar conversion', () => {
+  test('formats ISO timestamps with abbreviated US calendar dates', () => {
     const iso = '2026-08-04T12:00:00.000Z'
-    // Same instant→local-calendar rules as lib/blog.formatDate; short month for card density.
+    // Instant→local-calendar conversion; short month for card density.
     expect(formatReadWatchDate(iso)).toBe(
       new Date(iso).toLocaleDateString('en-US', {
         month: 'short',

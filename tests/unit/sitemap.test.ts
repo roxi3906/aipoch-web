@@ -144,7 +144,7 @@ describe('sitemap', () => {
     )
     expect((skillsListRoute?.lastModified as Date).toISOString()).toBe('2026-09-17T00:00:00.000Z')
     expect((skillDetailRoute?.lastModified as Date).toISOString()).toBe('2026-09-17T00:00:00.000Z')
-    expect((blogRoute?.lastModified as Date).toISOString()).toBe('2026-09-17T00:00:00.000Z')
+    expect((blogRoute?.lastModified as Date).toISOString()).toBe('2026-09-18T00:00:00.000Z')
     expect(guidesIndexRoute).toBeUndefined()
     expect(guideDetailRoute).toMatchObject({
       url: `${siteDomain}/guides/openclaw-local-deployment`,
@@ -153,6 +153,7 @@ describe('sitemap', () => {
     })
     expect((guideDetailRoute?.lastModified as Date).toISOString()).toBe('2026-09-17T00:00:00.000Z')
     expect(routes.some((route) => route.url === `${siteDomain}/community`)).toBe(false)
+    expect(routes.some((route) => route.url === `${siteDomain}/medflow-redesign`)).toBe(false)
   })
   test('updates shared-layout pages while preserving newer content and Wiki dates', async () => {
     const { default: sitemap } = await import('../../app/sitemap')
@@ -160,7 +161,7 @@ describe('sitemap', () => {
     const routeDate = (url: string) =>
       (routes.find((route) => route.url === url)?.lastModified as Date)?.toISOString()
 
-    expect(routeDate(`${siteDomain}/blog/existing-post`)).toBe('2026-09-17T00:00:00.000Z')
+    expect(routeDate(`${siteDomain}/blog/existing-post`)).toBe('2026-09-18T00:00:00.000Z')
     expect(routeDate(`${siteDomain}/blog/newer-post`)).toBe('2026-09-18T08:00:00.000Z')
     expect(routeDate(`${siteDomain}/docs/getting-started`)).toBe('2026-08-17T08:30:00.000Z')
     for (const route of routes.filter((route) => !route.url.startsWith(`${siteDomain}/docs/`))) {

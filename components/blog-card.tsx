@@ -1,92 +1,105 @@
-import { ArrowUpRight, Clock, Pin } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 import type { BlogPost } from '@/lib/blog'
-import { formatDate } from '@/lib/blog'
+import { cn } from '@/lib/utils'
 
 interface BlogCardProps {
   post: BlogPost
   variant: 'featured' | 'secondary'
 }
 
+function formatCategoryLabel(category: string) {
+  const value = category.trim() || 'AIPOCH-open-science'
+  return value.replace(/\s+/g, '-').replace(/_/g, '-')
+}
+
+function ReadTime({ readTime, className }: { readTime: string; className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 uppercase text-[#61615c]', className)}>
+      <Clock className="size-3 shrink-0" strokeWidth={2} />
+      <span>{readTime}</span>
+    </span>
+  )
+}
+
 export function BlogCard({ post, variant }: BlogCardProps) {
   const isFeatured = variant === 'featured'
-
-  const cardContent = (
-    <div className={cn(!isFeatured && 'flex flex-col flex-1 min-h-0')}>
-      <div
-        className={cn(
-          'flex items-start justify-between gap-4',
-          isFeatured ? 'mb-5' : 'mb-3 shrink-0'
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {isFeatured && (
-            <Pin className="size-4 text-red-500 fill-red-500 shrink-0 rotate-45" />
-          )}
-          <span className="inline-block px-2.5 py-1 rounded-none bg-gray-100 text-xs font-semibold uppercase tracking-widest text-gray-600">
-            {post.frontmatter.category}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 shrink-0">
-          <Clock className="size-3 text-gray-400" />
-          <span className="uppercase">{post.frontmatter.readTime}</span>
-        </div>
-      </div>
-
-      {isFeatured ? (
-        <h2 className="text-2xl md:text-3xl font-bold mb-4 min-h-16 overflow-hidden line-clamp-2 group-hover:text-gray-700 transition-colors shrink-0">
-          {post.frontmatter.title}
-        </h2>
-      ) : (
-        <h3 className="text-xl font-bold mb-3 min-h-14 overflow-hidden line-clamp-2 group-hover:text-gray-700 transition-colors shrink-0">
-          {post.frontmatter.title}
-        </h3>
-      )}
-
-      <p
-        className={cn(
-          'text-gray-600 overflow-hidden line-clamp-3',
-          isFeatured ? 'mb-6 h-18' : 'text-sm h-14 shrink-0'
-        )}
-      >
-        {post.frontmatter.description}
-      </p>
-
-      {!isFeatured && <hr className="border-t border-gray-200/60 my-4 shrink-0" />}
-
-      <div
-        className={cn(
-          'flex items-center shrink-0',
-          isFeatured ? 'justify-between' : 'gap-2 mt-auto'
-        )}
-      >
-        <div className={cn('flex gap-2', isFeatured ? 'items-center' : 'items-start')}>
-          <div className={cn(!isFeatured && 'flex flex-col gap-0.5')}>
-            <span className="text-sm font-medium text-gray-700">
-              {post.frontmatter.author}
-            </span>
-            <span className={cn('text-xs font-mono text-gray-500', isFeatured && 'ml-2')}>
-              {formatDate(post.frontmatter.date)}
-            </span>
-          </div>
-        </div>
-        {isFeatured && (
-          <ArrowUpRight className="size-5 text-gray-400 group-hover:text-black group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
-        )}
-      </div>
-    </div>
-  )
+  const categoryLabel = formatCategoryLabel(post.frontmatter.category)
 
   return (
     <Link
       href={`/blog/${post.slug}`}
       className={cn(
-        'group block w-full border border-black/10 bg-white hover:border-black/20 hover:shadow-lg transition-all duration-200',
-        isFeatured ? 'mb-12 p-8' : 'p-6 flex flex-col h-full'
+        'group block h-full transition-opacity duration-150 ease-out',
+        isFeatured
+          ? 'bg-transparent'
+          : 'overflow-hidden border border-[#e5e7eb] bg-white hover:shadow-[0_0_0_1px_rgba(23,23,23,0.08),0_14px_40px_rgba(23,23,23,0.14)]'
       )}
     >
-      {cardContent}
+      {isFeatured ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex h-6 items-center justify-between gap-4">
+            <span className="bg-[#e8e2d6] px-2.5 py-1 text-xs font-semibold uppercase leading-4 tracking-[0.12em] text-[#6b6b66]">
+              {categoryLabel}
+            </span>
+            <ReadTime readTime={post.frontmatter.readTime} className="text-xs font-medium leading-4" />
+          </div>
+
+          <h2 className="line-clamp-4 pt-5 font-[Georgia] text-[36px] leading-[44px] tracking-[-0.028em] text-[#111]">
+            {post.frontmatter.seo?.h1 ?? post.frontmatter.title}
+          </h2>
+
+          <p className="line-clamp-3 text-base leading-[26px] text-[#6b6b66]">
+            {post.frontmatter.description}
+          </p>
+
+          <div className="mt-8 flex h-6 items-center">
+            <svg
+              aria-hidden
+              viewBox="0 0 20 20"
+              width={20}
+              height={20}
+              fill="none"
+              className="size-5 text-[#c4c4be] transition-colors duration-150 group-hover:text-[#171717]"
+            >
+              <path
+                d="M5.83333 5.83333H14.1667V14.1667"
+                stroke="currentColor"
+                strokeWidth="1.66667"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M5.83333 14.1667L14.1667 5.83333"
+                stroke="currentColor"
+                strokeWidth="1.66667"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+      ) : (
+        <div className="flex h-[360px] flex-col justify-between p-6">
+          <div className="pb-3">
+            <span className="inline-flex bg-[#e8e2d6] px-2.5 py-1 text-[11px] font-semibold uppercase leading-4 tracking-[0.1em] text-[#6b6b66]">
+              {categoryLabel}
+            </span>
+          </div>
+
+          <h2 className="line-clamp-4 pb-3 font-[Georgia] text-[22px] leading-[30px] tracking-[-0.025em] text-[#171717]">
+            {post.frontmatter.seo?.h1 ?? post.frontmatter.title}
+          </h2>
+
+          <p className="line-clamp-4 text-sm leading-5 text-[#6b6b66]">
+            {post.frontmatter.description}
+          </p>
+
+          <div className="flex justify-end pt-2">
+            <ReadTime readTime={post.frontmatter.readTime} className="text-xs leading-[18px]" />
+          </div>
+        </div>
+      )}
     </Link>
   )
 }
