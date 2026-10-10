@@ -45,15 +45,6 @@ const resource = (value: unknown, path: string): UseCaseManifestResource => {
     throw new ManifestValidationError(`${path}.bytes`, 'non-negative safe integer', item.bytes)
   if (typeof item.sha256 !== 'string' || !/^[a-f\d]{64}$/i.test(item.sha256))
     throw new ManifestValidationError(`${path}.sha256`, '64 hexadecimal characters', item.sha256)
-  if (
-    typeof item.path !== 'string' ||
-    !item.path ||
-    item.path.includes('\\') ||
-    Array.from(item.path).some((character) => character.charCodeAt(0) < 32) ||
-    item.path.split('/').some((part) => !part || part === '.' || part === '..') ||
-    /^[a-z][a-z\d+.-]*:/i.test(item.path)
-  )
-    throw new ManifestValidationError(`${path}.path`, 'safe relative resource path', item.path)
   return item as unknown as UseCaseManifestResource
 }
 

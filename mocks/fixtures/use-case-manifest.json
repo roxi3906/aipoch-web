@@ -6,20 +6,19 @@
       "file_name": "Can a Simple Algorithm Beat AI at Wordle.png",
       "bytes": 2366230,
       "sha256": "cf90cb228dcc7c623c507f471820e14104a8abe85751f80a60a326c9d444d24e",
-      "path": "Can a Simple Algorithm Beat AI at Wordle/Can a Simple Algorithm Beat AI at Wordle.png"
+      "path": "Wordle: Source Files/Can a Simple Algorithm Beat AI at Wordle.png"
     },
     "case": {
       "file_name": "Can a Simple Algorithm Beat AI at Wordle.science",
       "bytes": 671109,
       "sha256": "6e816f1f92cbe4feeed9e3217c6f1bd0d9c046fd4ba653017b9812391f421610",
-      "path": "Can a Simple Algorithm Beat AI at Wordle/Can a Simple Algorithm Beat AI at Wordle.science",
       "release_url": ""
     },
     "introduction": {
       "file_name": "Can a Simple Algorithm Beat AI at Wordle.md",
       "bytes": 1368,
       "sha256": "8d0399c9934a0f44b2dee148dc4a6f90165381c7d2ce5a25427d4926bad6578f",
-      "path": "Can a Simple Algorithm Beat AI at Wordle/Can a Simple Algorithm Beat AI at Wordle.md"
+      "path": null
     }
   },
   {

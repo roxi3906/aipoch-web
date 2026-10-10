@@ -9,8 +9,11 @@ const wikiSitemapUrl = 'http://openscience-wiki/sitemap'
 
 mock.module('@/service/open-science-use-cases.server', () => ({
   fetchUseCaseSitemapEntries: async () => [
-    { slug: 'manifest-case', title: 'Manifest case' },
-    { slug: 'existing-replay', title: 'Existing replay' }
+    { slug: 'nvda-all-at-once-or-four-weeks', title: 'NVDA: ALL AT ONCE OR FOUR WEEKS?' },
+    {
+      slug: 'can-a-simple-algorithm-beat-ai-at-wordle',
+      title: 'Can a Simple Algorithm Beat AI at Wordle'
+    }
   ]
 }))
 
@@ -87,13 +90,13 @@ describe('sitemap', () => {
     expect(routes.some((route) => route.url.includes('/replay/dot-science'))).toBe(false)
     for (const path of [
       '/open-science/use-cases',
-      '/open-science/use-cases/manifest-case',
-      '/open-science/use-cases/existing-replay',
-      '/open-science/use-cases/manifest-case/replay',
-      '/open-science/use-cases/existing-replay/replay'
+      '/open-science/use-cases/nvda-all-at-once-or-four-weeks',
+      '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle',
+      '/open-science/use-cases/nvda-all-at-once-or-four-weeks/replay',
+      '/open-science/use-cases/can-a-simple-algorithm-beat-ai-at-wordle/replay'
     ]) {
       expect(routes.find((route) => route.url === `${siteDomain}${path}`)?.lastModified).toEqual(
-        new Date(path.endsWith('/replay') ? '2026-10-10' : '2026-10-09')
+        new Date('2026-10-10')
       )
     }
   })

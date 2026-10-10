@@ -49,21 +49,90 @@ describe('use-case manifest normalization', () => {
     expect(entry.introductionUrl).toBe(
       'https://objects.example.test/cases/can-a-simple-algorithm-beat-ai-at-wordle/Can%20a%20Simple%20Algorithm%20Beat%20AI%20at%20Wordle.md'
     )
-    for (const file_name of ['.', '..', '../cover.png', 'a/b.png', 'a\\b.png', 'cover\u0000.png']) {
-      expect(() =>
-        parseUseCaseManifest([{ ...manifest[0], cover: { ...manifest[0].cover, file_name } }], url)
-      ).toThrow()
+  })
+
+  test('accepts NVDA source paths and encodes published filenames for every resource', () => {
+    const title = 'NVDA: ALL AT ONCE OR FOUR WEEKS?'
+    const item = structuredClone(manifest[0])
+    item.name = 'nvda-all-at-once-or-four-weeks'
+    item.title = title
+    for (const [key, extension] of [
+      ['cover', 'png'],
+      ['case', 'science'],
+      ['introduction', 'md']
+    ] as const) {
+      Object.assign(item, {
+        [key]: {
+          ...item[key],
+          file_name: `${title}.${extension}`,
+          path: `${title}/${title}.${extension}`
+        }
+      })
+    }
+    const [entry] = parseUseCaseManifest([item], url)
+    const prefix = 'https://objects.example.test/cases/nvda-all-at-once-or-four-weeks/'
+    expect(entry.preview?.image).toBe(
+      `${prefix}NVDA%3A%20ALL%20AT%20ONCE%20OR%20FOUR%20WEEKS%3F.png`
+    )
+    expect(entry.package.url).toBe(
+      `${prefix}NVDA%3A%20ALL%20AT%20ONCE%20OR%20FOUR%20WEEKS%3F.science`
+    )
+    expect(entry.introductionUrl).toBe(
+      `${prefix}NVDA%3A%20ALL%20AT%20ONCE%20OR%20FOUR%20WEEKS%3F.md`
+    )
+  })
+
+  test('ignores missing, non-string and arbitrary source paths for every resource', () => {
+    const expected = parseUseCaseManifest([manifest[0]], url)
+    for (const key of ['cover', 'case', 'introduction'] as const) {
+      for (const path of [
+        undefined,
+        null,
+        42,
+        false,
+        {},
+        [],
+        '',
+        '../cover.png',
+        '/cover.png',
+        'https://evil.test/a',
+        'a/../b',
+        'a\\b',
+        'a\u0000b'
+      ]) {
+        const item = structuredClone(manifest[0])
+        // JSON serialization omits undefined, exercising an actually absent field.
+        Object.assign(item, { [key]: { ...item[key], path } })
+        expect(parseUseCaseManifest(JSON.parse(JSON.stringify([item])), url)).toEqual(expected)
+      }
+    }
+  })
+
+  test('still rejects invalid published filenames for every resource', () => {
+    for (const key of ['cover', 'case', 'introduction'] as const) {
+      for (const file_name of [
+        undefined,
+        null,
+        42,
+        '',
+        ' ',
+        '.',
+        '..',
+        '../cover.png',
+        'a/b.png',
+        'a\\b.png',
+        'cover\u0000.png'
+      ]) {
+        expect(() =>
+          parseUseCaseManifest([{ ...manifest[0], [key]: { ...manifest[0][key], file_name } }], url)
+        ).toThrow()
+      }
     }
   })
 
   test('accepts an empty manifest and rejects duplicate slugs or invalid resources', () => {
     expect(parseUseCaseManifest([], url)).toEqual([])
     expect(() => parseUseCaseManifest([manifest[0], manifest[0]], url)).toThrow()
-    for (const path of ['../cover.png', '/cover.png', 'https://evil.test/a', 'a/../b', 'a\\b']) {
-      expect(() =>
-        parseUseCaseManifest([{ ...manifest[0], cover: { ...manifest[0].cover, path } }], url)
-      ).toThrow()
-    }
     expect(() =>
       parseUseCaseManifest(
         [{ ...manifest[0], case: { ...manifest[0].case, release_url: 'javascript:alert(1)' } }],
@@ -100,11 +169,6 @@ describe('use-case manifest cache', () => {
       [{ ...manifest[0], case: { ...manifest[0].case, file_name: '../PRIVATE' } }],
       '$[0].case.file_name',
       'safe non-empty file name'
-    ],
-    [
-      [{ ...manifest[0], introduction: { ...manifest[0].introduction, path: '../PRIVATE' } }],
-      '$[0].introduction.path',
-      'safe relative resource path'
     ],
     [
       [{ ...manifest[0], case: { ...manifest[0].case, release_url: null } }],

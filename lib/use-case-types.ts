@@ -172,7 +172,8 @@ export interface UseCaseManifestResource {
   file_name: string
   bytes: number
   sha256: string
-  path: string
+  /** Unused source metadata; it is neither required nor validated. */
+  path?: unknown
 }
 
 export interface UseCaseManifestItem {

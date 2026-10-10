@@ -186,7 +186,8 @@ describe('mock development end to end', () => {
     )
   }, 120000)
 
-  test('manifest covers, pagination and introductions work without client JavaScript', async () => {
+  test('manifest resources ignore source paths during SSR and navigation without client JavaScript', async () => {
+    // The first fixture has a colon-prefixed cover path, no archive path, and a null introduction path.
     const browser = await chromium.launch()
     try {
       const context = await browser.newContext({ javaScriptEnabled: false })
@@ -261,7 +262,7 @@ describe('mock development end to end', () => {
       const sitemap = (await (await fetch(`${web}/sitemap.xml`)).text()).replace(/>\s+</g, '><')
       for (const item of manifestSample) {
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-09T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).toContain(
           `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-10T00:00:00.000Z</lastmod>`
