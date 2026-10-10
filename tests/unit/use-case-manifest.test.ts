@@ -78,6 +78,137 @@ describe('use-case manifest normalization', () => {
 })
 
 describe('use-case manifest cache', () => {
+  // Diagnostics must identify the broken field without disclosing its value.
+  test.each([
+    [{}, '$', 'array'],
+    [[null], '$[0]', 'object'],
+    [[{ ...manifest[0], title: '' }], '$[0].title', 'non-empty string'],
+    [[{ ...manifest[0], name: 'PRIVATE NAME' }], '$[0].name', 'lowercase kebab-case slug'],
+    [[manifest[0], manifest[0]], '$[1].name', 'unique slug'],
+    [[{ ...manifest[0], cover: null }], '$[0].cover', 'object'],
+    [
+      [{ ...manifest[0], cover: { ...manifest[0].cover, bytes: -1 } }],
+      '$[0].cover.bytes',
+      'non-negative safe integer'
+    ],
+    [
+      [{ ...manifest[0], cover: { ...manifest[0].cover, sha256: 'PRIVATE HASH' } }],
+      '$[0].cover.sha256',
+      '64 hexadecimal characters'
+    ],
+    [
+      [{ ...manifest[0], case: { ...manifest[0].case, file_name: '../PRIVATE' } }],
+      '$[0].case.file_name',
+      'safe non-empty file name'
+    ],
+    [
+      [{ ...manifest[0], introduction: { ...manifest[0].introduction, path: '../PRIVATE' } }],
+      '$[0].introduction.path',
+      'safe relative resource path'
+    ],
+    [
+      [{ ...manifest[0], case: { ...manifest[0].case, release_url: null } }],
+      '$[0].case.release_url',
+      'string'
+    ],
+    [
+      [{ ...manifest[0], case: { ...manifest[0].case, release_url: 'PRIVATE URL' } }],
+      '$[0].case.release_url',
+      'HTTP(S) URL without credentials'
+    ],
+    [
+      [
+        {
+          ...manifest[0],
+          case: { ...manifest[0].case, release_url: 'https://user:PRIVATE@host.test/file' }
+        }
+      ],
+      '$[0].case.release_url',
+      'HTTP(S) URL without credentials'
+    ]
+  ])('logs the validation path for invalid manifest %#', async (value, fieldPath, expected) => {
+    spyOn(console, 'info').mockImplementation(() => {})
+    const error = spyOn(console, 'error').mockImplementation(() => {})
+    globalThis.fetch = mock(async () => body('"invalid"', value)) as unknown as typeof fetch
+    await expect(
+      createUseCaseManifestCache(`${url}?signature=PRIVATE`).read(() => {})
+    ).rejects.toThrow()
+    const details = JSON.parse(error.mock.calls[0][2])
+    expect(details).toMatchObject({
+      failureStage: 'validation',
+      httpStatus: 200,
+      fieldPath,
+      expected,
+      errorMessage: expect.stringContaining(fieldPath as string),
+      actualType: expect.any(String),
+      retainedCache: false
+    })
+    const logs = JSON.stringify(error.mock.calls)
+    expect(logs).not.toContain('PRIVATE')
+    expect(logs).not.toContain(manifest[0].name)
+    expect(logs).not.toContain(manifest[0].title)
+    expect(logs).not.toContain(url)
+  })
+
+  test('distinguishes JSON, HTTP, network and timeout failures without logging raw errors', async () => {
+    spyOn(console, 'info').mockImplementation(() => {})
+    const error = spyOn(console, 'error').mockImplementation(() => {})
+    const networkError = new TypeError(`Failed to fetch ${url}?signature=PRIVATE`, {
+      cause: Object.assign(new Error('PRIVATE connection details'), { code: 'ECONNRESET' })
+    })
+    const cases = [
+      {
+        result: () => new Response('{"PRIVATE":bad}'),
+        stage: 'json',
+        message: 'Manifest response is not valid JSON'
+      },
+      {
+        result: () => new Response('PRIVATE', { status: 503 }),
+        stage: 'http',
+        message: 'Manifest HTTP 503'
+      },
+      {
+        result: () => new Response(null, { status: 304 }),
+        stage: 'http',
+        message: 'Unexpected 304 without a cached validator'
+      },
+      {
+        result: () => {
+          throw networkError
+        },
+        stage: 'request',
+        message: 'Manifest request failed',
+        code: 'ECONNRESET'
+      },
+      {
+        result: () => {
+          throw new DOMException('PRIVATE', 'TimeoutError')
+        },
+        stage: 'request',
+        message: 'Manifest request timed out'
+      },
+      {
+        result: () => {
+          throw 'PRIVATE'
+        },
+        stage: 'request',
+        message: 'Manifest request failed'
+      }
+    ]
+    for (const scenario of cases) {
+      globalThis.fetch = mock(async () => scenario.result()) as unknown as typeof fetch
+      await expect(createUseCaseManifestCache(url).read(() => {})).rejects.toBeDefined()
+      const details = JSON.parse(error.mock.calls.at(-1)?.[2])
+      expect(details).toMatchObject({
+        failureStage: scenario.stage,
+        errorMessage: scenario.message
+      })
+      expect(details.errorCode).toBe(scenario.code)
+    }
+    expect(JSON.stringify(error.mock.calls)).not.toContain('PRIVATE')
+    expect(JSON.stringify(error.mock.calls)).not.toContain(url)
+  })
+
   test('coalesces cold loads, returns stale data immediately, and sends the exact ETag after response', async () => {
     const first = deferred()
     const next = deferred()

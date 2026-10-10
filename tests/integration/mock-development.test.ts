@@ -165,11 +165,16 @@ describe('mock development end to end', () => {
       (await renderedHtml(await fetch(pageUrl))).includes(`${manifestSample[0].title} Updated`)
     )
 
-    await update({ mode: 'error' })
-    const beforeFailure = (await stats()).requests
-    await (await fetch(pageUrl)).text()
-    await eventually(async () => (await stats()).requests > beforeFailure)
-    expect(await renderedHtml(await fetch(pageUrl))).toContain(`${manifestSample[0].title} Updated`)
+    // HTTP and HTTP-200 JSON failures must both preserve the SSR snapshot.
+    for (const mode of ['error', 'invalid']) {
+      await update({ mode })
+      const beforeFailure = (await stats()).requests
+      await (await fetch(pageUrl)).text()
+      await eventually(async () => (await stats()).requests > beforeFailure)
+      expect(await renderedHtml(await fetch(pageUrl))).toContain(
+        `${manifestSample[0].title} Updated`
+      )
+    }
 
     await update({ mode: 'empty' })
     await eventually(async () =>
