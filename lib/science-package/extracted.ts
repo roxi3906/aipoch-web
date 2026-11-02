@@ -2,7 +2,6 @@ import type { UseCasePackage } from '../use-case-types'
 import { downloadPackage, type PackageProgress } from './archive'
 import { fetchReplayResponse } from './idle-response'
 import { readJsonStream } from './json-stream'
-import { type OrderedEvent, readOrderedReplay } from './ordered'
 import {
   buildSanitizer,
   parseExtractedSession,
@@ -13,7 +12,6 @@ import {
 } from './parse'
 import { normalizeReviews, reviewRecordsFrom } from './review-records'
 import { isReviewerCorrectionAttribution } from './reviewer'
-import { Sha256 } from './sha256'
 
 const MAX_METADATA_BYTES = 128 * 1024 ** 2
 
@@ -22,8 +20,7 @@ const fetchMetadata = async (
   base: string,
   path: string,
   optional = false,
-  signal?: AbortSignal,
-  onDigest?: (hash: string) => void
+  signal?: AbortSignal
 ): Promise<unknown> => {
   const response = await fetchReplayResponse(new URL(path, base), signal)
   // S3 can return 403 for a missing object when bucket listing is disabled.
@@ -31,11 +28,9 @@ const fetchMetadata = async (
   if (!response.ok || !response.body)
     throw new Error(`Session metadata download failed (HTTP ${response.status}).`)
   let size = 0
-  const digest = new Sha256()
   const stream = response.body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
-        digest.update(chunk)
         size += chunk.byteLength
         if (size > MAX_METADATA_BYTES)
           throw new Error('Session metadata exceeds the browser limit.')
@@ -43,9 +38,7 @@ const fetchMetadata = async (
       }
     })
   )
-  const value = await readJsonStream(stream)
-  onDigest?.(digest.hex())
-  return value
+  return readJsonStream(stream)
 }
 
 /** Read only the documents required for a transcript; artifact bytes load through their URLs. */
@@ -53,8 +46,7 @@ export const prepareReplayPackage = async (
   info: UseCasePackage,
   slug: string,
   progress: (value: PackageProgress) => void,
-  signal?: AbortSignal,
-  onOrdered?: (event: OrderedEvent) => void
+  signal?: AbortSignal
 ) => {
   if (info.extractedBaseUrl) {
     progress({ stage: 'metadata' })
@@ -73,81 +65,15 @@ export const prepareReplayPackage = async (
       ? AbortSignal.any([signal, recordsController.signal])
       : recordsController.signal
     // Start independent documents together. Capture rejection immediately while the body loads.
-    let sessionDigest: string | undefined
-    const requestSession = () =>
-      fetchMetadata(base.href, 'session.json', true, recordsSignal, (hash) => {
-        sessionDigest = hash
-      }).then(
-        (value) => ({ value }),
-        (error) => ({ error })
-      )
-    let sessionRequest: ReturnType<typeof requestSession> | undefined = requestSession()
-    const sessionFile = async () => {
-      sessionRequest ??= requestSession()
-      const settled = await sessionRequest
-      if ('error' in settled) {
-        sessionRequest = undefined
-        throw settled.error
-      }
-      return settled.value
-    }
+    const sessionRequest = fetchMetadata(base.href, 'session.json', true, signal)
     const settleRecords = () =>
       fetchMetadata(base.href, 'records.json', true, recordsSignal).then(
         (value) => ({ value }),
         (error) => ({ error })
       )
     let initialRecords: ReturnType<typeof settleRecords> | undefined = settleRecords()
-    const reviewLoader = (
-      session: ReturnType<typeof sessionRecordFrom>,
-      runDocument?: Record<string, unknown>
-    ) => {
-      const { sanitize } = buildSanitizer(session, runDocument)
-      // Reviews cannot alter the finalized body. Each attempt waits for the entire records
-      // document, including findings/dispositions/version associations arriving after reviews.
-      return async () => {
-        const request = initialRecords ?? settleRecords()
-        initialRecords = undefined
-        const settled = await request
-        if ('error' in settled) throw settled.error
-        let records = settled.value
-        const hasReviews =
-          session.autoReviewEnabled === true ||
-          session.messages.some((message) => isReviewerCorrectionAttribution(message.attribution))
-        if (records === undefined && hasReviews) {
-          const archive = await readVerifiedPackage(await downloadPackage(info, () => {}, signal))
-          if (
-            archive.session.id !== session.id ||
-            archive.session.revision !== session.revision ||
-            JSON.stringify(archive.session.messages) !== JSON.stringify(session.messages)
-          )
-            throw new Error('Review history does not match the published session.')
-          records = archive.records
-        }
-        return normalizeReviews(
-          session,
-          records === undefined ? undefined : reviewRecordsFrom(records),
-          sanitize
-        )
-      }
-    }
     try {
-      const ordered = await readOrderedReplay(info, slug, onOrdered, signal)
-      if (ordered) {
-        const { sessionSha256, runRoots } = ordered
-        return {
-          ...ordered,
-          ordered: true as const,
-          loadReviews: async () => {
-            const file = await sessionFile()
-            if (!file || sessionDigest !== sessionSha256) {
-              sessionRequest = undefined
-              throw new Error('Review source does not match ordered replay.')
-            }
-            return reviewLoader(sessionRecordFrom(file), runRoots)()
-          }
-        }
-      }
-      const file = await sessionFile()
+      const file = await sessionRequest
       if (file !== undefined) {
         const session = sessionRecordFrom(file)
         // Notebook exports store runs under the session's project/id storage key.
@@ -170,7 +96,35 @@ export const prepareReplayPackage = async (
         }
         progress({ stage: 'parsing' })
         const result = parseExtractedSession(session, slug, base.href, runDocument)
-        return { ...result, loadReviews: reviewLoader(session, runDocument) }
+        const { sanitize } = buildSanitizer(session, runDocument)
+        // Reviews cannot alter the finalized body. Each attempt waits for the entire records
+        // document, including findings/dispositions/version associations arriving after reviews.
+        const loadReviews = async () => {
+          const request = initialRecords ?? settleRecords()
+          initialRecords = undefined
+          const settled = await request
+          if ('error' in settled) throw settled.error
+          let records = settled.value
+          const hasReviews =
+            session.autoReviewEnabled === true ||
+            session.messages.some((message) => isReviewerCorrectionAttribution(message.attribution))
+          if (records === undefined && hasReviews) {
+            const archive = await readVerifiedPackage(await downloadPackage(info, () => {}, signal))
+            if (
+              archive.session.id !== session.id ||
+              archive.session.revision !== session.revision ||
+              JSON.stringify(archive.session.messages) !== JSON.stringify(session.messages)
+            )
+              throw new Error('Review history does not match the published session.')
+            records = archive.records
+          }
+          return normalizeReviews(
+            session,
+            records === undefined ? undefined : reviewRecordsFrom(records),
+            sanitize
+          )
+        }
+        return { ...result, loadReviews }
       }
       recordsController.abort()
     } catch (error) {

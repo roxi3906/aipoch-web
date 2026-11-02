@@ -1,11 +1,6 @@
-import { createContext, type ReactNode, useContext, useMemo, useRef } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { reviewerResponseStates } from '@/lib/science-package/reviewer'
-import type {
-  NormalizedActivity,
-  ReplayReview,
-  TranscriptItem,
-  UseCaseSession
-} from '@/lib/use-case-types'
+import type { NormalizedActivity, ReplayReview, UseCaseSession } from '@/lib/use-case-types'
 import { SessionActivityGroup } from './activity-group'
 import { SessionCompactionItem } from './compaction-item'
 import { SessionElicitationCard } from './elicitation-card'
@@ -79,11 +74,10 @@ export const SessionTranscript = ({
 }) => {
   // Cache finalized row elements and full-context markers so revealing more blocks does not
   // rerun earlier Markdown/renderers or recalculate turn/group boundaries.
-  const rowCache = useRef(new WeakMap<TranscriptItem, ReactNode>())
   const rows = useMemo(() => {
     const turnFinal = turnFinalMessageIds(session.items)
     const correctionStates = reviewerResponseStates(session.items)
-    const render = (item: TranscriptItem) => {
+    return session.items.map((item) => {
       // content-visibility skips rendering for offscreen rows — the main
       // lever against long-transcript jank (the app does the same).
       const rowClassName = '[content-visibility:auto] [contain-intrinsic-size:auto_240px]'
@@ -99,14 +93,8 @@ export const SessionTranscript = ({
           <div key={item.id} data-replay-block={item.id} className={rowClassName}>
             <SessionMessageItem
               message={item}
-              showTurnCompletion={
-                session.rowMetadata?.[item.id]?.turnFinal ?? turnFinal.has(item.id)
-              }
-              reviewerCorrectionState={
-                session.rowMetadata
-                  ? session.rowMetadata[item.id]?.reviewerState
-                  : correctionStates.get(item.id)
-              }
+              showTurnCompletion={turnFinal.has(item.id)}
+              reviewerCorrectionState={correctionStates.get(item.id)}
             />
             <MessageReviews messageId={item.id} />
           </div>
@@ -131,14 +119,6 @@ export const SessionTranscript = ({
           <SessionElicitationCard item={item} />
         </div>
       )
-    }
-    return session.items.map((item) => {
-      // Ordered records carry final context markers and retain item identity across appends.
-      // Legacy sessions still render once from their complete model.
-      if (session.rowMetadata && rowCache.current.has(item)) return rowCache.current.get(item)
-      const row = render(item)
-      if (session.rowMetadata) rowCache.current.set(item, row)
-      return row
     })
   }, [session])
   return (

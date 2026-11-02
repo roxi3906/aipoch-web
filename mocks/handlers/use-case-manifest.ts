@@ -1,16 +1,6 @@
 import { HttpResponse, http } from 'msw'
 import { useCaseManifest } from '../fixtures'
-import orderedFixture from '../fixtures/ordered-replay.json'
 import { buildCoveragePackage } from '../fixtures/science-coverage-package'
-import { buildSciencePackage, digest } from '../fixtures/science-package'
-
-const orderedSource = JSON.parse(orderedFixture.source).session
-const orderedPackage = buildSciencePackage(orderedSource.title, orderedSource)
-const orderedIndex = {
-  ...orderedFixture.index,
-  archiveSha256: orderedPackage.sha256,
-  sessionSha256: digest(orderedPackage.extractedFiles['session.json'])
-}
 
 const packages = new Map(
   useCaseManifest.map((item) => [item.name, buildCoveragePackage(item.title)])
@@ -32,12 +22,6 @@ export const useCaseManifestHandlers = (origin: string) => {
   let replayChunkDelayMs = 0
   let recordsChunkDelayMs = 0
   let recordsMode = 'normal'
-  let orderedMode = 'off'
-  let orderedChunkDelayMs = 0
-  let orderedFinished = false
-  let sessionFinished = false
-  let resetDownloads: (() => void)[] = []
-  const packageFor = (name: string) => (orderedMode === 'off' ? packages.get(name) : orderedPackage)
   return [
     http.get(`${origin}/use-case-manifest/manifest.json`, async ({ request }) => {
       requests += 1
@@ -65,8 +49,8 @@ export const useCaseManifestHandlers = (origin: string) => {
                 release_url: item.case.release_url
                   ? `${origin}/use-case-manifest/releases/${item.name}.science`
                   : '',
-                bytes: packageFor(item.name)?.sizeBytes,
-                sha256: packageFor(item.name)?.sha256
+                bytes: packages.get(item.name)?.sizeBytes,
+                sha256: packages.get(item.name)?.sha256
               }
             })),
         { headers }
@@ -80,9 +64,7 @@ export const useCaseManifestHandlers = (origin: string) => {
         notModified,
         lastValidator,
         packageRequests,
-        discoveryMode,
-        orderedFinished,
-        sessionFinished
+        discoveryMode
       })
     ),
     http.put(`${origin}/__mock/use-case-manifest`, async ({ request }) => {
@@ -96,8 +78,6 @@ export const useCaseManifestHandlers = (origin: string) => {
         replayChunkDelayMs?: number
         recordsChunkDelayMs?: number
         recordsMode?: string
-        orderedMode?: string
-        orderedChunkDelayMs?: number
       }
       if (
         (update.discoveryMode !== undefined &&
@@ -121,12 +101,6 @@ export const useCaseManifestHandlers = (origin: string) => {
           (!Number.isInteger(update.recordsChunkDelayMs) ||
             update.recordsChunkDelayMs < 0 ||
             update.recordsChunkDelayMs > 5000)) ||
-        (update.orderedMode !== undefined &&
-          !['off', 'normal', 'truncated', 'corrupt'].includes(update.orderedMode)) ||
-        (update.orderedChunkDelayMs !== undefined &&
-          (!Number.isInteger(update.orderedChunkDelayMs) ||
-            update.orderedChunkDelayMs < 0 ||
-            update.orderedChunkDelayMs > 5000)) ||
         (update.recordsMode !== undefined &&
           !['normal', 'error', 'missing'].includes(update.recordsMode)) ||
         (update.delayMs !== undefined &&
@@ -142,12 +116,6 @@ export const useCaseManifestHandlers = (origin: string) => {
       replayChunkDelayMs = update.replayChunkDelayMs ?? 0
       recordsChunkDelayMs = update.recordsChunkDelayMs ?? 0
       recordsMode = update.recordsMode ?? 'normal'
-      orderedMode = update.orderedMode ?? 'off'
-      orderedChunkDelayMs = update.orderedChunkDelayMs ?? 0
-      orderedFinished = false
-      sessionFinished = false
-      for (const stop of resetDownloads) stop()
-      resetDownloads = []
       revision += 1
       return HttpResponse.json({ revision })
     }),
@@ -162,30 +130,7 @@ export const useCaseManifestHandlers = (origin: string) => {
           const file = path.slice(prefix.length)
           if (file === 'records.json' && recordsMode !== 'normal')
             return new HttpResponse(null, { status: recordsMode === 'missing' ? 404 : 503 })
-          if (orderedMode !== 'off' && file === `replay-v1/${orderedPackage.sha256}/index.json`)
-            return HttpResponse.json(orderedIndex)
-          if (
-            orderedMode !== 'off' &&
-            file === `replay-v1/${orderedPackage.sha256}/blocks.ndjson`
-          ) {
-            let text = orderedFixture.stream
-            if (orderedMode === 'truncated') text = `${text.split('\n').slice(0, 3).join('\n')}\n`
-            if (orderedMode === 'corrupt')
-              text = text.replace('Ordered complete answer.', 'Altered complete answer.')
-            return new HttpResponse(
-              delayedBody(
-                new TextEncoder().encode(text),
-                orderedChunkDelayMs,
-                () => {
-                  orderedFinished = true
-                },
-                undefined,
-                (stop) => resetDownloads.push(stop)
-              ),
-              { headers: { 'Content-Type': 'application/x-ndjson' } }
-            )
-          }
-          const bytes = packageFor(item.name)?.extractedFiles[file]
+          const bytes = packages.get(item.name)?.extractedFiles[file]
           if (!bytes) return new HttpResponse(null, { status: 404 })
           const chunkDelay =
             file === 'session.json'
@@ -194,17 +139,7 @@ export const useCaseManifestHandlers = (origin: string) => {
                 ? recordsChunkDelayMs
                 : 0
           return new HttpResponse(
-            chunkDelay
-              ? delayedBody(
-                  bytes,
-                  chunkDelay,
-                  () => {
-                    if (file === 'session.json') sessionFinished = true
-                  },
-                  undefined,
-                  orderedMode === 'off' ? undefined : (stop) => resetDownloads.push(stop)
-                )
-              : (bytes as BodyInit),
+            chunkDelay ? delayedBody(bytes, chunkDelay) : (bytes as BodyInit),
             {
               headers: {
                 'Content-Type': file.endsWith('.json')
@@ -237,7 +172,7 @@ export const useCaseManifestHandlers = (origin: string) => {
             return new HttpResponse('too large', {
               headers: { 'Content-Length': String(2 * 1024 ** 3 + 1) }
             })
-          const sample = packageFor(item.name)
+          const sample = packages.get(item.name)
           if (!sample) return new HttpResponse(null, { status: 404 })
           return new HttpResponse(
             replayChunkDelayMs
@@ -259,42 +194,23 @@ export const useCaseManifestHandlers = (origin: string) => {
 }
 
 // Slow but active response bodies exercise idle deadlines through the real HTTP adapter.
-const delayedBody = (
-  bytes: Uint8Array,
-  delayMs: number,
-  finished?: () => void,
-  canceled?: () => void,
-  registerReset?: (stop: () => void) => void
-) => {
+const delayedBody = (bytes: Uint8Array, delayMs: number) => {
   let timer: ReturnType<typeof setTimeout> | undefined
   let offset = 0
-  let closed = false
   const size = Math.ceil(bytes.length / 18)
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      registerReset?.(() => {
-        clearTimeout(timer)
-        if (!closed) {
-          closed = true
-          controller.close()
-        }
-      })
       const send = () => {
         const end = Math.min(offset + size, bytes.length)
         controller.enqueue(bytes.slice(offset, end))
         offset = end
-        if (offset === bytes.length) {
-          closed = true
-          finished?.()
-          controller.close()
-        } else timer = setTimeout(send, delayMs)
+        if (offset === bytes.length) controller.close()
+        else timer = setTimeout(send, delayMs)
       }
       send()
     },
     cancel() {
       clearTimeout(timer)
-      closed = true
-      canceled?.()
     }
   })
 }

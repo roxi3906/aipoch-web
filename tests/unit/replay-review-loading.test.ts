@@ -1,12 +1,6 @@
 import { afterEach, expect, jest, mock, test } from 'bun:test'
 import * as loader from '../../lib/science-package/extracted'
 
-// Legacy fixture storage has no optional ordered replay projection.
-const legacy = (fetcher: typeof fetch): typeof fetch =>
-  ((input, init) =>
-    String(input).includes('/replay-v1/')
-      ? Promise.resolve(new Response(null, { status: 404 }))
-      : fetcher(input, init)) as typeof fetch
 const originalFetch = globalThis.fetch
 let fakeClock = false
 const info = {
@@ -69,23 +63,66 @@ afterEach(() => {
     fakeClock = false
   }
 })
+test('existing session waits for late earlier records and never requests a derived replay format', async () => {
+  let body!: ReadableStreamDefaultController<Uint8Array>
+  const requests: string[] = []
+  globalThis.fetch = mock(async (url: string | URL) => {
+    requests.push(String(url))
+    if (String(url).endsWith('records.json')) return Response.json(records)
+    return new Response(
+      new ReadableStream({
+        start(c) {
+          body = c
+        }
+      })
+    )
+  }) as unknown as typeof fetch
+  let ready = false
+  const pending = loader
+    .prepareReplayPackage(info, 'case', () => {})
+    .then((value) => {
+      ready = true
+      return value
+    })
+  const earlier = { id: 'earlier', role: 'user', createdAt: 0, content: 'First question' }
+  const json = JSON.stringify({
+    version: 2,
+    session: {
+      ...session,
+      messages: [...session.messages, earlier]
+    }
+  })
+  const split = json.indexOf(',{"id":"earlier"')
+  expect(split).toBeGreaterThan(0)
+  body.enqueue(new TextEncoder().encode(json.slice(0, split)))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(ready).toBe(false)
+  body.enqueue(new TextEncoder().encode(json.slice(split)))
+  body.close()
+  const result = await pending
+  expect(result.session.items.map((item) => item.id)).toEqual(['earlier', 'm'])
+  expect(result.session.items[1]).toMatchObject({ content: session.messages[0].content })
+  expect(requests).toEqual([
+    `${info.extractedBaseUrl}session.json`,
+    `${info.extractedBaseUrl}records.json`
+  ])
+  await result.loadReviews()
+})
 test('starts records beside session, exposes complete body before records, then orders complete associated reviews', async () => {
   const requests: string[] = []
   let body!: ReadableStreamDefaultController<Uint8Array>
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) => {
-      requests.push(String(url))
-      return String(url).endsWith('session.json')
-        ? Response.json({ version: 2, session })
-        : new Response(
-            new ReadableStream({
-              start(c) {
-                body = c
-              }
-            })
-          )
-    }) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) => {
+    requests.push(String(url))
+    return String(url).endsWith('session.json')
+      ? Response.json({ version: 2, session })
+      : new Response(
+          new ReadableStream({
+            start(c) {
+              body = c
+            }
+          })
+        )
+  }) as unknown as typeof fetch
   expect(typeof loader.prepareReplayPackage).toBe('function')
   const result = await loader.prepareReplayPackage(info, 'case', () => {})
   expect(requests).toEqual([
@@ -114,13 +151,11 @@ test('starts records beside session, exposes complete body before records, then 
 test('review failure and retry leave the body unchanged and refetch only records', async () => {
   let attempts = 0
   const requests: string[] = []
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) => {
-      requests.push(String(url))
-      if (String(url).endsWith('session.json')) return Response.json({ version: 2, session })
-      return ++attempts === 1 ? new Response(null, { status: 503 }) : Response.json(records)
-    }) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) => {
+    requests.push(String(url))
+    if (String(url).endsWith('session.json')) return Response.json({ version: 2, session })
+    return ++attempts === 1 ? new Response(null, { status: 503 }) : Response.json(records)
+  }) as unknown as typeof fetch
   expect(typeof loader.prepareReplayPackage).toBe('function')
   const result = await loader.prepareReplayPackage(info, 'case', () => {})
   const before = JSON.stringify(result.session)
@@ -132,13 +167,11 @@ test('review failure and retry leave the body unchanged and refetch only records
 test('cancels pending records when the consumer leaves after the body is ready', async () => {
   const canceled = mock(() => {})
   const controller = new AbortController()
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) =>
-      String(url).endsWith('session.json')
-        ? Response.json({ version: 2, session })
-        : new Response(new ReadableStream({ cancel: canceled }))
-    ) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) =>
+    String(url).endsWith('session.json')
+      ? Response.json({ version: 2, session })
+      : new Response(new ReadableStream({ cancel: canceled }))
+  ) as unknown as typeof fetch
   expect(typeof loader.prepareReplayPackage).toBe('function')
   const result = await loader.prepareReplayPackage(info, 'case', () => {}, controller.signal)
   const pending = result.loadReviews()
@@ -149,13 +182,11 @@ test('cancels pending records when the consumer leaves after the body is ready',
 
 test('invalid session cancels its independently downloading records', async () => {
   const canceled = mock(() => {})
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) =>
-      String(url).endsWith('session.json')
-        ? Response.json({ version: 2, session: null })
-        : new Response(new ReadableStream({ cancel: canceled }))
-    ) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) =>
+    String(url).endsWith('session.json')
+      ? Response.json({ version: 2, session: null })
+      : new Response(new ReadableStream({ cancel: canceled }))
+  ) as unknown as typeof fetch
   await expect(loader.prepareReplayPackage(info, 'case', () => {})).rejects.toThrow('session.json')
   expect(canceled).toHaveBeenCalled()
 })
@@ -166,19 +197,17 @@ for (const stalled of [false, true]) {
     fakeClock = true
     let source!: ReadableStreamDefaultController<Uint8Array>
     let attempt = 0
-    globalThis.fetch = legacy(
-      mock(async (url: string | URL) => {
-        if (String(url).endsWith('session.json')) return Response.json({ version: 2, session })
-        if (++attempt > 1) return Response.json(records)
-        return new Response(
-          new ReadableStream({
-            start(c) {
-              source = c
-            }
-          })
-        )
-      }) as unknown as typeof fetch
-    )
+    globalThis.fetch = mock(async (url: string | URL) => {
+      if (String(url).endsWith('session.json')) return Response.json({ version: 2, session })
+      if (++attempt > 1) return Response.json(records)
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            source = c
+          }
+        })
+      )
+    }) as unknown as typeof fetch
     const result = await loader.prepareReplayPackage(info, 'case', () => {})
     const before = JSON.stringify(result.session)
     const pending = result.loadReviews()
@@ -228,17 +257,14 @@ test('body still waits for Notebook dependencies while reviews download independ
       ]
     }
   }
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) => {
-      requests.push(String(url))
-      if (String(url).endsWith('session.json'))
-        return Response.json({ version: 2, session: source })
-      if (String(url).endsWith('records.json')) return Response.json(records)
-      return new Promise<Response>((resolve) => {
-        finishRun = resolve
-      })
-    }) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) => {
+    requests.push(String(url))
+    if (String(url).endsWith('session.json')) return Response.json({ version: 2, session: source })
+    if (String(url).endsWith('records.json')) return Response.json(records)
+    return new Promise<Response>((resolve) => {
+      finishRun = resolve
+    })
+  }) as unknown as typeof fetch
   let ready = false
   const pending = loader
     .prepareReplayPackage(info, 'case', () => {})

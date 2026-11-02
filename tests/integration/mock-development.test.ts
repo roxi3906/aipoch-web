@@ -6,10 +6,6 @@ import { expect as browserExpect, chromium, devices } from '@playwright/test'
 import manifestSample from '../../mocks/fixtures/use-case-manifest.json'
 import { verifyImportPreparation } from './use-case-import-browser'
 import {
-  verifyOrderedFailureAndCancel,
-  verifyOrderedReplay
-} from './use-case-ordered-replay-browser'
-import {
   verifyCompactionReplay,
   verifyPreviewSwitching,
   verifyReplayCoverage,
@@ -87,40 +83,6 @@ afterAll(async () => {
 }, 15000)
 
 describe('mock development end to end', () => {
-  for (const mobile of [false, true]) {
-    test(`ordered replay renders during both slow body and session downloads (${mobile ? 'mobile' : 'desktop'})`, async () => {
-      const browser = await chromium.launch()
-      const directory = join(process.cwd(), '.codex/ordered-replay')
-      mkdirSync(directory, { recursive: true })
-      try {
-        const page = await browser.newPage(
-          mobile ? devices['Pixel 5'] : { viewport: { width: 1440, height: 1000 } }
-        )
-        await verifyOrderedReplay(
-          page,
-          `${web}/open-science/use-cases/${manifestSample[0].name}/replay`,
-          api,
-          join(directory, mobile ? 'early-mobile.png' : 'early-desktop.png')
-        )
-      } finally {
-        await browser.close()
-      }
-    }, 120000)
-  }
-  test('ordered replay retains partial blocks, retries reviews and cancels in flight', async () => {
-    const browser = await chromium.launch()
-    try {
-      const page = await browser.newPage()
-      await verifyOrderedFailureAndCancel(
-        page,
-        `${web}/open-science/use-cases/${manifestSample[0].name}/replay`,
-        api
-      )
-    } finally {
-      await browser.close()
-    }
-  }, 120000)
-
   for (const surface of ['replay', 'detail']) {
     test(`prepares ${surface} browser-held science imports with retry, cancellation and download fallback on desktop and mobile`, async () => {
       const importArtifacts = join(process.cwd(), '.codex/browser-import-2026-10-21')
@@ -337,7 +299,7 @@ describe('mock development end to end', () => {
           `/open-science/use-cases/${item.name}</loc><lastmod>2026-10-28T00:00:00.000Z</lastmod>`
         )
         expect(sitemap).toContain(
-          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-10-30T00:00:00.000Z</lastmod>`
+          `/open-science/use-cases/${item.name}/replay</loc><lastmod>2026-11-02T00:00:00.000Z</lastmod>`
         )
         const detailHtml = await (await fetch(`${web}/open-science/use-cases/${item.name}`)).text()
         expect(detailHtml).toContain(`href="/open-science/use-cases/${item.name}/replay"`)

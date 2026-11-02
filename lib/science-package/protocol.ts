@@ -1,6 +1,5 @@
 import type { ReplayReview, UseCasePackage, UseCaseSession } from '../use-case-types'
 import type { PackageProgress } from './archive'
-import type { OrderedEvent } from './ordered'
 
 export type ReviewState =
   | { status: 'loading' }
@@ -12,8 +11,6 @@ export type WorkerRequest =
   | { type: 'retry-reviews' }
   | { type: 'urls'; urls: Record<string, string> }
 export type WorkerReply =
-  | { type: 'ordered'; event: OrderedEvent }
-  | { type: 'ordered-end' }
   | { type: 'reviews'; state: ReviewState }
   | { type: 'progress'; progress: PackageProgress }
   | { type: 'resources'; resources: { id: string; blob: Blob }[] }

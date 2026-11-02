@@ -3,12 +3,6 @@ import { downloadPackage } from '../../lib/science-package/archive'
 import { loadReplayPackage } from '../../lib/science-package/extracted'
 import { Sha256 } from '../../lib/science-package/sha256'
 
-// Legacy fixture storage has no optional ordered replay projection.
-const legacy = (fetcher: typeof fetch): typeof fetch =>
-  ((input, init) =>
-    String(input).includes('/replay-v1/')
-      ? Promise.resolve(new Response(null, { status: 404 }))
-      : fetcher(input, init)) as typeof fetch
 const originalFetch = globalThis.fetch
 const encoder = new TextEncoder()
 const document = encoder.encode(
@@ -28,20 +22,18 @@ const flush = async () => {
 const start = (options: { archive?: boolean; signal?: AbortSignal } = {}) => {
   jest.useFakeTimers()
   const canceled = mock(() => {})
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) =>
-      String(url).endsWith('records.json')
-        ? new Response(null, { status: 404 })
-        : new Response(
-            new ReadableStream<Uint8Array>({
-              start(controller) {
-                source = controller
-              },
-              cancel: canceled
-            })
-          )
-    ) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (url: string | URL) =>
+    String(url).endsWith('records.json')
+      ? new Response(null, { status: 404 })
+      : new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              source = controller
+            },
+            cancel: canceled
+          })
+        )
+  ) as unknown as typeof fetch
   const hash = new Sha256()
   hash.update(document)
   const promise = options.archive
@@ -145,16 +137,14 @@ test('a failed stream releases its idle timer', async () => {
 
 test('the first-byte deadline includes waiting for response headers', async () => {
   jest.useFakeTimers()
-  globalThis.fetch = legacy(
-    mock(
-      (_url: unknown, options: RequestInit) =>
-        new Promise((_resolve, reject) => {
-          options.signal?.addEventListener('abort', () => reject(options.signal?.reason), {
-            once: true
-          })
+  globalThis.fetch = mock(
+    (_url: unknown, options: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(options.signal?.reason), {
+          once: true
         })
-    ) as unknown as typeof fetch
-  )
+      })
+  ) as unknown as typeof fetch
   const pending = loadReplayPackage(info, 'slow', () => {})
   let error: unknown
   void pending.catch((reason) => {

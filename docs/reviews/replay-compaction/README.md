@@ -1,8 +1,27 @@
 # Context compaction replay validation
 
-The final ordered-stream follow-up is documented in [Ordered replay v1](ordered-replay.md).
-It supersedes the earlier EOF-only body limitation for newly published ordered projections;
-legacy publications still use the conservative path described below.
+## Current scope (2026-11-02)
+
+The optional ordered replay format and its Web consumer were withdrawn at the user's
+request. Publisher PR #23 is closed. This change uses only existing published files;
+no re-publication, extraction changes or deployment/runtime configuration changes are
+required. Session and review downloads run concurrently. The body waits for the complete
+session and required Notebook metadata, then sorts, filters compaction and reveals whole
+blocks in contiguous batches. Reviewer cards load independently and can be retried without
+changing the body. Download-time conversation rendering is not promised: later records
+can precede or regroup earlier records in the existing format.
+
+The 128 replay URLs in the existing snapshot now use template date **2026-11-02**;
+gallery/overview dates remain unchanged. The sections below record earlier validation.
+
+Fresh verification after withdrawal: 177 focused replay/package/mock-contract unit tests,
+8 targeted browser scenarios (slow reviews, review failure/retry, archive review fallback,
+partial body failure, desktop/mobile compact and math rendering), typecheck and 9 sitemap
+snapshot tests passed. Scoped Biome reported no errors and the existing console warning.
+The new regression holds a partial session containing a complete later message, then
+appends an earlier message: no body is exposed before final ordering, and only existing
+metadata URLs are requested. Full repository suites and a local production build were not
+rerun; historical baseline limitations below still apply. No live deployment was performed.
 
 The replay parser projects structurally identified `ContextCompaction` activities into
 status-only rows. Both extracted metadata and verified archives use this projection;

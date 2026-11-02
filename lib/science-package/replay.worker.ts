@@ -24,19 +24,10 @@ const loadReviews = async () => {
 self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {
   try {
     if (data.type === 'load') {
-      const result = await prepareReplayPackage(
-        data.info,
-        data.slug,
-        (progress) => send({ type: 'progress', progress }),
-        undefined,
-        (event) => send({ type: 'ordered', event })
+      const result = await prepareReplayPackage(data.info, data.slug, (progress) =>
+        send({ type: 'progress', progress })
       )
       reviewLoader = result.loadReviews
-      if ('ordered' in result && result.ordered) {
-        send({ type: 'ordered-end' })
-        void loadReviews()
-        return
-      }
       parsed = result.session
       send({ type: 'resources', resources: result.resources })
     } else if (data.type === 'retry-reviews') {

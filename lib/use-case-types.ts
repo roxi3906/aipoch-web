@@ -220,9 +220,6 @@ export interface ReplayReview {
 }
 
 export interface UseCaseSession {
-  /** Final markers supplied before ordered blocks arrive, so earlier rows never change. */
-  rowMetadata?: Record<string, { turnFinal: boolean; reviewerState?: 'completed' | 'failed' }>
-
   schemaVersion: 1
   slug: string
   title: string

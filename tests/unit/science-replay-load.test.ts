@@ -212,37 +212,3 @@ test('independent review failure and retry never replace the ready transcript', 
   worker.emit({ type: 'reviews', state: { status: 'ready', reviews: [] } })
   expect(reviews.mock.calls).toHaveLength(count)
 })
-
-test('ordered blocks render before EOF and preserve their identity on later arrivals and failure', async () => {
-  prepare()
-  const updates: import('../../lib/science-package/load').ReplayState[] = []
-  const cancel = loadReplay('case', info, (state) => updates.push(state))
-  await tick()
-  const worker = TestWorker.instances[0]
-  worker.emit({
-    type: 'ordered',
-    event: {
-      type: 'start',
-      session: { ...session, items: [], rowMetadata: { m0: { turnFinal: false } } }
-    }
-  })
-  worker.emit({ type: 'ordered', event: { type: 'block', item: session.items[0], resources: [] } })
-  await tick()
-  const first = updates.at(-1)
-  expect(first?.status).toBe('rendering')
-  if (first?.status !== 'rendering') throw new Error('Missing prefix')
-  expect(first.visibleCount).toBe(1)
-  worker.emit({ type: 'ordered', event: { type: 'block', item: session.items[1], resources: [] } })
-  await tick()
-  const next = updates.at(-1)
-  expect(next?.status).toBe('rendering')
-  if (next?.status !== 'rendering') throw new Error('Missing continuation')
-  expect(next.data.items[0]).toBe(first.data.items[0])
-  worker.emit({ type: 'error', message: 'Interrupted ordered stream' })
-  expect(updates.at(-1)).toMatchObject({ status: 'error', visibleCount: 2 })
-  const count = updates.length
-  cancel()
-  worker.emit({ type: 'ordered-end' })
-  await tick()
-  expect(updates).toHaveLength(count)
-})

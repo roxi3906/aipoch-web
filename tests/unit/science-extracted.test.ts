@@ -4,12 +4,6 @@ import { loadReplayPackage } from '../../lib/science-package/extracted'
 import type { Manifest } from '../../lib/science-package/parse'
 import { buildCoveragePackage } from '../../mocks/fixtures/science-coverage-package'
 
-// Legacy fixture storage has no optional ordered replay projection.
-const legacy = (fetcher: typeof fetch): typeof fetch =>
-  ((input, init) =>
-    String(input).includes('/replay-v1/')
-      ? Promise.resolve(new Response(null, { status: 404 }))
-      : fetcher(input, init)) as typeof fetch
 const originalFetch = globalThis.fetch
 afterEach(() => {
   globalThis.fetch = originalFetch
@@ -39,16 +33,14 @@ const setup = async (override?: (path: string, blob: Blob | undefined) => Respon
     if (entry.storageKey && file) extracted.set(entry.storageKey, file)
   }
   const requests: string[] = []
-  globalThis.fetch = legacy(
-    mock(async (input: string | URL | Request) => {
-      const url = String(input)
-      requests.push(url)
-      if (url === info.url) return new Response(sample.bytes as BodyInit)
-      const path = decodeURIComponent(url.slice(base.length))
-      const blob = extracted.get(path)?.blob
-      return override?.(path, blob) ?? new Response(blob, { status: blob ? 200 : 404 })
-    }) as unknown as typeof fetch
-  )
+  globalThis.fetch = mock(async (input: string | URL | Request) => {
+    const url = String(input)
+    requests.push(url)
+    if (url === info.url) return new Response(sample.bytes as BodyInit)
+    const path = decodeURIComponent(url.slice(base.length))
+    const blob = extracted.get(path)?.blob
+    return override?.(path, blob) ?? new Response(blob, { status: blob ? 200 : 404 })
+  }) as unknown as typeof fetch
   return { files, requests }
 }
 
@@ -303,21 +295,19 @@ test('buffers out-of-order records and unresolved dependencies until complete bl
   const json = JSON.stringify(source)
   let body!: ReadableStreamDefaultController<Uint8Array>
   let records!: (value: Response) => void
-  globalThis.fetch = legacy(
-    mock(async (url: string | URL) =>
-      String(url).endsWith('session.json')
-        ? new Response(
-            new ReadableStream({
-              start(controller) {
-                body = controller
-              }
-            })
-          )
-        : new Promise<Response>((resolve) => {
-            records = resolve
+  globalThis.fetch = mock(async (url: string | URL) =>
+    String(url).endsWith('session.json')
+      ? new Response(
+          new ReadableStream({
+            start(controller) {
+              body = controller
+            }
           })
-    ) as unknown as typeof fetch
-  )
+        )
+      : new Promise<Response>((resolve) => {
+          records = resolve
+        })
+  ) as unknown as typeof fetch
   let settled = false
   const pending = loadReplayPackage(info, 'buffered', () => {})
   void pending.then(() => {

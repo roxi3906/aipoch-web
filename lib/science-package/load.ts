@@ -19,7 +19,6 @@ export function loadReplay(
   let worker: Worker | undefined
   let active = true
   let bodyFinished = false
-  let downloadFinished = true
   let reviewsFinished = false
   let reviewState: ReviewState = { status: 'loading' }
   let prepared: UseCaseSession | undefined
@@ -51,10 +50,9 @@ export function loadReplay(
   // Body ordering, compaction filtering and body dependencies settle before any block.
   // Keep the full model for turn/reviewer context; only the visible prefix grows.
   const reveal = () => {
-    renderTimer = undefined
     if (!active || !prepared) return
     visibleCount = Math.min(visibleCount + 8, prepared.items.length)
-    if (downloadFinished && visibleCount === prepared.items.length) {
+    if (visibleCount === prepared.items.length) {
       bodyFinished = true
       if (reviewsFinished) {
         active = false
@@ -63,7 +61,7 @@ export function loadReplay(
       update({ status: 'ready', data: prepared })
     } else {
       update({ status: 'rendering', data: prepared, visibleCount })
-      if (active && visibleCount < prepared.items.length) renderTimer = setTimeout(reveal, 16)
+      if (active) renderTimer = setTimeout(reveal, 16)
     }
   }
   updateReviews(reviewState)
@@ -91,52 +89,6 @@ export function loadReplay(
             active = false
             stop()
           }
-        } else if (data.type === 'ordered') {
-          if (data.event.type === 'start') {
-            if (prepared) {
-              fail('Duplicate ordered replay header.')
-              return
-            }
-            prepared = data.event.session
-            downloadFinished = false
-          } else {
-            if (!prepared || downloadFinished) {
-              fail('Missing ordered replay header.')
-              return
-            }
-            try {
-              const mapping = Object.fromEntries(
-                data.event.resources.map(({ id, blob }) => {
-                  const url = URL.createObjectURL(blob)
-                  urls.push(url)
-                  return [id, url]
-                })
-              )
-              const resolve = (value: unknown): unknown => {
-                if (typeof value === 'string')
-                  return value.replace(/science-asset:\d+/g, (id) => mapping[id] ?? id)
-                if (Array.isArray(value)) return value.map(resolve)
-                if (value && typeof value === 'object')
-                  return Object.fromEntries(
-                    Object.entries(value).map(([key, entry]) => [key, resolve(entry)])
-                  )
-                return value
-              }
-              prepared = {
-                ...prepared,
-                items: [
-                  ...prepared.items,
-                  resolve(data.event.item) as UseCaseSession['items'][number]
-                ]
-              }
-              if (renderTimer === undefined) renderTimer = setTimeout(reveal, 0)
-            } catch (error) {
-              fail(error instanceof Error ? error.message : 'Could not create package resources.')
-            }
-          }
-        } else if (data.type === 'ordered-end') {
-          downloadFinished = true
-          if (renderTimer === undefined) renderTimer = setTimeout(reveal, 0)
         } else if (data.type === 'error') fail(data.message)
         else if (prepared) return
         else if (data.type === 'progress') update({ status: 'loading', progress: data.progress })
