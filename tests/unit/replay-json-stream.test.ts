@@ -41,6 +41,15 @@ for (const step of [1, 2, 7, 31])
       record
     )
   })
+
+test('retains exact long strings, escaped chunk edges and adjacent literals', async () => {
+  const value = { body: '\\"中文🙂\n'.repeat(10000), next: [true, false, null, 1.25e30, 'tail'] }
+  const bytes = encoder.encode(JSON.stringify(value))
+  expect(await readJsonStream(chunks(bytes, 4093))).toEqual(value)
+  for (const literal of ['12345', 'true', 'false', 'null', '"root\\nstring"']) {
+    expect(await readJsonStream(chunks(encoder.encode(literal), 1))).toEqual(JSON.parse(literal))
+  }
+})
 for (const invalid of [
   '{"x":',
   '{"x":1,}',

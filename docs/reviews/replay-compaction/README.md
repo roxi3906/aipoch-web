@@ -1,5 +1,42 @@
 # Context compaction replay validation
 
+## Large-input parser fixes (2026-11-02)
+
+JSON tokens now retain slices of each decoded input chunk and join once at token completion.
+Quoted strings and numeric/literal tokens no longer create a concatenation node per character.
+Escaping state survives chunk boundaries; completed records still wait for document EOF and
+body ordering dependencies before display. Raw files and archive checks are unchanged.
+
+The MathJax delimiter adapter reuses the pinned plugin's public syntax/AST exports. For each
+inline/display construct and text context, a failed scan to EOF caches its source interval.
+Later openings in that interval cannot find a closer either, so they fall back immediately.
+Earlier positions, other delimiter types, paragraphs and documents remain independent. No
+text replacement, dependency update, node_modules patch or rendering-stack change is needed.
+
+Regression evidence:
+
+- Before implementation, all four new regressions failed: three tokenizer work bounds and
+  the Chromium heap budget. After the fixes, all pass. The tokenizer checks count consumed
+  input rather than comparing wall-clock time, avoiding timing-sensitive CI assertions.
+- 182 focused replay/package/mock-contract unit tests passed. Typecheck and scoped Biome
+  passed. Seven mock browser scenarios passed, covering independent slow/error/archive
+  reviews and desktop/mobile compact/formula rendering. Nine sitemap checks passed; the
+  128 replay URLs retain the same actual modification date, 2026-11-02.
+- Run the standalone V8 regression with
+  `bun test tests/integration/replay-parser-memory.test.ts`. It passed with a 16 MiB string
+  split into 64 KiB chunks and an eight-times-payload additional-heap budget. This browser
+  check is separate from the Bun unit suite; Bun uses a different JavaScript engine.
+- An identical Chromium probe measured about 350 MiB / 423 ms before and 33 MiB / 65 ms after.
+  These are maximum sampled JS heap readings during input pulls/completion, not RSS or a
+  strict instantaneous peak. GC and machine load affect the exact readings.
+- Actual component SSR for a 32 KB paragraph of unclosed delimiters improved from about
+  3.22 seconds to 154 ms; the fixed 64 KB case took 200 ms. Browser KaTeX rendering passed,
+  but these malformed-formula timing figures measure SSR, not browser freeze duration.
+- Independent review compared 20,000 randomized Markdown ASTs against the original plugin
+  and 2,000 randomly chunked JSON documents against their source values without differences.
+  No remaining blockers were found. Full repository suites, local production build and live
+  deployment were not run for this follow-up. Previous baseline limitations still apply.
+
 ## Current scope (2026-11-02)
 
 The optional ordered replay format and its Web consumer were withdrawn at the user's

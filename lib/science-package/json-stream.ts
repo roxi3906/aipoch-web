@@ -7,7 +7,8 @@ type Frame = {
 /** Incrementally assemble JSON values; incomplete strings/records never leave this parser. */
 class JsonStreamParser {
   private frames: Frame[] = []
-  private token = ''
+  private tokenParts: string[] = []
+  private literal = false
   private quoted = false
   private escaped = false
   private complete = false
@@ -44,26 +45,28 @@ class JsonStreamParser {
   }
 
   write(text: string) {
-    for (const character of text) {
+    // Keep whole input slices, not one concatenation node per UTF-16 code unit.
+    let tokenStart = 0
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index]
       if (this.quoted) {
-        this.token += character
         if (this.escaped) this.escaped = false
         else if (character === '\\') this.escaped = true
         else if (character === '"') {
           this.quoted = false
-          this.accept(JSON.parse(this.token))
-          this.token = ''
+          this.tokenParts.push(text.slice(tokenStart, index + 1))
+          this.accept(JSON.parse(this.tokenParts.join('')))
+          this.tokenParts = []
         }
         continue
       }
       // A number or literal is only complete at a JSON delimiter, possibly in the next chunk.
-      if (this.token) {
-        if (!/[\s,\]}]/.test(character)) {
-          this.token += character
-          continue
-        }
-        this.accept(JSON.parse(this.token))
-        this.token = ''
+      if (this.literal) {
+        if (!/[\s,\]}]/.test(character)) continue
+        this.tokenParts.push(text.slice(tokenStart, index))
+        this.accept(JSON.parse(this.tokenParts.join('')))
+        this.tokenParts = []
+        this.literal = false
       }
       if (/[\x20\t\r\n]/.test(character)) continue
       const frame = this.frames.at(-1)
@@ -99,17 +102,21 @@ class JsonStreamParser {
           )
         } else if (character === '"') {
           this.quoted = true
-          this.token = character
-        } else if (/[-0-9tfn]/.test(character)) this.token = character
-        else this.invalid()
+          tokenStart = index
+        } else if (/[-0-9tfn]/.test(character)) {
+          this.literal = true
+          tokenStart = index
+        } else this.invalid()
       }
     }
+    if (this.quoted || this.literal) this.tokenParts.push(text.slice(tokenStart))
   }
 
   finish() {
-    if (this.token && !this.quoted) {
-      this.accept(JSON.parse(this.token))
-      this.token = ''
+    if (this.literal) {
+      this.accept(JSON.parse(this.tokenParts.join('')))
+      this.tokenParts = []
+      this.literal = false
     }
     if (!this.complete || this.frames.length || this.quoted) this.invalid()
     return this.value
